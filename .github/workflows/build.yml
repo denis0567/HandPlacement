@@ -49,25 +49,17 @@ jobs:
           if (-not $main) { throw "Main.cpp not found in generated project" }
           Copy-Item "$env:GITHUB_WORKSPACE\IVFHandPlacement.cpp" $main.FullName -Force
           "PROJDIR=$($main.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      - name: Generate Visual Studio files
-        run: |
-          Write-Host "Files in C:\gen:"
-          Get-ChildItem C:\gen -Recurse | ForEach-Object { $_.FullName }
-          $lua = Get-ChildItem C:\gen -Recurse -Filter premake5.lua | Select-Object -First 1
-          if (-not $lua) { throw "premake5.lua not found anywhere in C:\gen, see the file list above" }
-          Write-Host "Using $($lua.FullName)"
-          Push-Location $lua.DirectoryName
-          & $env:PREMAKE vs2022
-          Get-ChildItem $lua.DirectoryName -Recurse | Select-Object -First 80 | ForEach-Object { $_.FullName }
-
-
+          
       - name: Build ASI
         run: |
-          $sln = Get-ChildItem C:\gen -Recurse -Filter *.sln | Select-Object -First 1
-          if (-not $sln) { throw "solution not found" }
-          Write-Host "Building $($sln.FullName)"
-          msbuild $sln.FullName /p:Configuration=Release /p:Platform="GTA-SA" /m
+          Write-Host "--- SDK projects and solutions:"
+          Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Include *.sln,*.slnx,*.vcxproj | ForEach-Object { $_.FullName }
+          Write-Host "--- existing .lib files:"
+          Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Filter *.lib | ForEach-Object { $_.FullName }
+          Write-Host "--- generated project (platforms, libs, sources):"
+          Select-String -Path C:\gen\IVFHandPlacement.vcxproj -Pattern "Platform|\.lib|Include=" | Select-Object -First 60 | ForEach-Object { $_.Line }
+          Write-Host "--- building"
+          msbuild C:\gen\IVFHandPlacement.vcxproj /p:Configuration=Release /p:Platform="GTA-SA" /m
 
       - name: Collect files
         run: |

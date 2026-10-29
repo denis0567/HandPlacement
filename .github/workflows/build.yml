@@ -1,0 +1,57 @@
+name: build-asi
+on:
+  push:
+  workflow_dispatch:
+
+env:
+  PLUGIN_SDK_DIR: C:\plugin-sdk
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Get plugin-sdk
+        run: git clone --depth 1 https://github.com/DK22Pac/plugin-sdk $env:PLUGIN_SDK_DIR
+
+      - name: Show plugin-sdk project files
+        run: |
+          Get-ChildItem $env:PLUGIN_SDK_DIR -Directory | ForEach-Object { $_.Name }
+          Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Filter *.vcxproj | ForEach-Object { $_.FullName }
+
+      - name: Build plugin-sdk (SA library)
+        run: |
+          $proj = Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Filter "plugin_sa*.vcxproj" | Select-Object -First 1
+          if (-not $proj) { throw "plugin_sa project not found, see the list above" }
+          Write-Host "Building $($proj.FullName)"
+          msbuild $proj.FullName /p:Configuration=Release /p:Platform=Win32 /m
+
+      - name: Find plugin library
+        id: findlib
+        run: |
+          $lib = Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Filter "plugin*.lib" | Where-Object { $_.Name -notmatch "_d\.lib$" } | Select-Object -First 1
+          if (-not $lib) { Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Filter *.lib | ForEach-Object { $_.FullName }; throw "plugin lib not found" }
+          Write-Host "Using $($lib.FullName)"
+          "dir=$($lib.DirectoryName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "name=$($lib.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Build ASI
+        run: >
+          msbuild IVFHandPlacement.vcxproj /p:Configuration=Release /p:Platform=Win32
+          /p:PluginSdkDir=$env:PLUGIN_SDK_DIR
+          /p:PluginLibDir="${{ steps.findlib.outputs.dir }}"
+          /p:PluginLibName="${{ steps.findlib.outputs.name }}"
+
+      - name: Collect files
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item Release\IVFHandPlacement.asi out\
+          Copy-Item IVFHandPlacement.ini out\
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IVFHandPlacement
+          path: out/*

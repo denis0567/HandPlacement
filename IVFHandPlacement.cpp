@@ -63,7 +63,6 @@ static bool              g_hasSaved  = false;
 
 static bool IsPlayerDriving(CPed* ped) {
     if (!ped) return false;
-    if (!ped->m_nPedFlags.bInVehicle) return false;
     CVehicle* veh = ped->m_pVehicle;
     return veh && veh->m_pDriver == ped;
 }

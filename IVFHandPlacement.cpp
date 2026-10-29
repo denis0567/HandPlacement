@@ -104,6 +104,17 @@ static void BeforePedRender(CPed* ped) {
 
     if (!loggedOnce) {
         Log("OK: modified bone id %d (index %d of %d) at render time", g_boneId, idx, (int)hier->numNodes);
+        CVector pp = ped->GetPosition();
+        Log("ped pos = %.3f %.3f %.3f", pp.x, pp.y, pp.z);
+        if (ped->m_pVehicle) {
+            CVector vp = ped->m_pVehicle->GetPosition();
+            Log("vehicle pos = %.3f %.3f %.3f", vp.x, vp.y, vp.z);
+        }
+        for (int i = 0; i < (int)hier->numNodes; i++) {
+            Log("node %2d: id=%3d flags=%d pos=%.3f %.3f %.3f", i,
+                (int)hier->pNodeInfo[i].nodeID, (int)hier->pNodeInfo[i].flags,
+                arr[i].pos.x, arr[i].pos.y, arr[i].pos.z);
+        }
         loggedOnce = true;
     }
 }

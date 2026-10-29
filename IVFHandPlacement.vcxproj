@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{6C1B2E4A-5D3F-4B7A-9E10-3A2B7C8D9E01}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>IVFHandPlacement</RootNamespace>
+    <PluginSdkDir Condition="'$(PluginSdkDir)'==''">$(PLUGIN_SDK_DIR)</PluginSdkDir>
+    <PluginLibDir Condition="'$(PluginLibDir)'==''">$(PluginSdkDir)\output\lib</PluginLibDir>
+    <PluginLibName Condition="'$(PluginLibName)'==''">plugin.lib</PluginLibName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <LinkIncremental>false</LinkIncremental>
+    <TargetName>IVFHandPlacement</TargetName>
+    <TargetExt>.asi</TargetExt>
+    <OutDir>$(MSBuildProjectDirectory)\Release\</OutDir>
+    <IntDir>$(MSBuildProjectDirectory)\obj\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <SDLCheck>false</SDLCheck>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_USING_V110_SDK71_;GTASA;PLUGIN_SGV_10US;RW;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(PluginSdkDir)\plugin_sa;$(PluginSdkDir)\plugin_sa\game_sa;$(PluginSdkDir)\plugin_sa\game_sa\rw;$(PluginSdkDir)\shared;$(PluginSdkDir)\shared\game;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <AdditionalLibraryDirectories>$(PluginLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(PluginLibName);%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="IVFHandPlacement.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

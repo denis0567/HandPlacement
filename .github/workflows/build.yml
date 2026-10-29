@@ -52,9 +52,15 @@ jobs:
 
       - name: Generate Visual Studio files
         run: |
-          Push-Location $env:PROJDIR
+          Write-Host "Files in C:\gen:"
+          Get-ChildItem C:\gen -Recurse | ForEach-Object { $_.FullName }
+          $lua = Get-ChildItem C:\gen -Recurse -Filter premake5.lua | Select-Object -First 1
+          if (-not $lua) { throw "premake5.lua not found anywhere in C:\gen, see the file list above" }
+          Write-Host "Using $($lua.FullName)"
+          Push-Location $lua.DirectoryName
           & $env:PREMAKE vs2022
-          Get-ChildItem $env:PROJDIR -Recurse | Select-Object -First 80 | ForEach-Object { $_.FullName }
+          Get-ChildItem $lua.DirectoryName -Recurse | Select-Object -First 80 | ForEach-Object { $_.FullName }
+
 
       - name: Build ASI
         run: |

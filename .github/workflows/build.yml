@@ -17,38 +17,58 @@ jobs:
       - name: Get plugin-sdk
         run: git clone --depth 1 https://github.com/DK22Pac/plugin-sdk $env:PLUGIN_SDK_DIR
 
-      - name: Show plugin-sdk project files
+      - name: Find premake
         run: |
-          Get-ChildItem $env:PLUGIN_SDK_DIR -Directory | ForEach-Object { $_.Name }
-          Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Filter *.vcxproj | ForEach-Object { $_.FullName }
+          $pm = "$env:PLUGIN_SDK_DIR\tools\premake\premake5.exe"
+          if (-not (Test-Path $pm)) {
+            Write-Host "premake5.exe not in plugin-sdk, downloading"
+            Invoke-WebRequest -Uri "https://github.com/premake/premake-core/releases/download/v5.0.0-beta2/premake-5.0.0-beta2-windows.zip" -OutFile pm.zip
+            Expand-Archive pm.zip C:\pm
+            $pm = "C:\pm\premake5.exe"
+          }
+          Write-Host "premake: $pm"
+          "PREMAKE=$pm" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Get-ChildItem "$env:PLUGIN_SDK_DIR\tools" -Recurse | Select-Object -First 60 | ForEach-Object { $_.FullName }
 
-      - name: Build plugin-sdk (SA library)
+      - name: Try to generate SDK library projects (best effort)
+        continue-on-error: true
+        working-directory: C:\plugin-sdk\tools\premake
         run: |
-          $proj = Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Filter "plugin_sa*.vcxproj" | Select-Object -First 1
-          if (-not $proj) { throw "plugin_sa project not found, see the list above" }
-          Write-Host "Building $($proj.FullName)"
-          msbuild $proj.FullName /p:Configuration=Release /p:Platform=Win32 /m
+          & $env:PREMAKE vs2022
+          Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Filter *.sln | ForEach-Object { $_.FullName }
 
-      - name: Find plugin library
-        id: findlib
+      - name: Generate plugin project
+        working-directory: C:\plugin-sdk\tools\premake
         run: |
-          $lib = Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Filter "plugin*.lib" | Where-Object { $_.Name -notmatch "_d\.lib$" } | Select-Object -First 1
-          if (-not $lib) { Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Filter *.lib | ForEach-Object { $_.FullName }; throw "plugin lib not found" }
-          Write-Host "Using $($lib.FullName)"
-          "dir=$($lib.DirectoryName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "name=$($lib.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          & $env:PREMAKE newplugin --type=ASI --name=IVFHandPlacement --dir=C:\gen --gtasa
+          Get-ChildItem C:\gen -Recurse | ForEach-Object { $_.FullName }
+
+      - name: Use my source code
+        run: |
+          $main = Get-ChildItem C:\gen -Recurse -Filter Main.cpp | Select-Object -First 1
+          if (-not $main) { throw "Main.cpp not found in generated project" }
+          Copy-Item "$env:GITHUB_WORKSPACE\IVFHandPlacement.cpp" $main.FullName -Force
+          "PROJDIR=$($main.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Generate Visual Studio files
+        run: |
+          Push-Location $env:PROJDIR
+          & $env:PREMAKE vs2022
+          Get-ChildItem $env:PROJDIR -Recurse | Select-Object -First 80 | ForEach-Object { $_.FullName }
 
       - name: Build ASI
-        run: >
-          msbuild IVFHandPlacement.vcxproj /p:Configuration=Release /p:Platform=Win32
-          /p:PluginSdkDir=$env:PLUGIN_SDK_DIR
-          /p:PluginLibDir="${{ steps.findlib.outputs.dir }}"
-          /p:PluginLibName="${{ steps.findlib.outputs.name }}"
+        run: |
+          $sln = Get-ChildItem C:\gen -Recurse -Filter *.sln | Select-Object -First 1
+          if (-not $sln) { throw "solution not found" }
+          Write-Host "Building $($sln.FullName)"
+          msbuild $sln.FullName /p:Configuration=Release /p:Platform="GTA-SA" /m
 
       - name: Collect files
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
-          Copy-Item Release\IVFHandPlacement.asi out\
+          $asi = Get-ChildItem C:\gen -Recurse -Filter *.asi | Select-Object -First 1
+          if (-not $asi) { throw "asi not found" }
+          Copy-Item $asi.FullName out\IVFHandPlacement.asi
           Copy-Item IVFHandPlacement.ini out\
 
       - uses: actions/upload-artifact@v4

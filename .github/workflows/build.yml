@@ -50,17 +50,26 @@ jobs:
           Copy-Item "$env:GITHUB_WORKSPACE\IVFHandPlacement.cpp" $main.FullName -Force
           "PROJDIR=$($main.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append
           
+      - name: Build plugin-sdk library (SA)
+        run: |
+          $p = "C:\plugin-sdk\plugin_sa\Plugin_SA.vcxproj"
+          $cfgs = Select-String -Path $p -Pattern 'ProjectConfiguration Include="([^"]+)"' | ForEach-Object { $_.Matches[0].Groups[1].Value }
+          Write-Host "SDK project configurations:"
+          $cfgs | ForEach-Object { Write-Host "  $_" }
+          $rel = $cfgs | Where-Object { $_ -match '^Release' -and $_ -match 'Win32' } | Select-Object -First 1
+          if (-not $rel) { throw "No Release|Win32 configuration found in Plugin_SA.vcxproj" }
+          $conf, $plat = $rel -split '\|'
+          Write-Host "Building SDK with Configuration=$conf Platform=$plat"
+          msbuild $p /p:Configuration="$conf" /p:Platform="$plat" /p:PlatformToolset=v145 /m
+          Write-Host "--- libs now:"
+          Get-ChildItem $env:PLUGIN_SDK_DIR\output -Recurse -Filter *.lib -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
+
       - name: Build ASI
         run: |
-          Write-Host "--- SDK projects and solutions:"
-          Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Include *.sln,*.slnx,*.vcxproj | ForEach-Object { $_.FullName }
-          Write-Host "--- existing .lib files:"
-          Get-ChildItem $env:PLUGIN_SDK_DIR -Recurse -Filter *.lib | ForEach-Object { $_.FullName }
-          Write-Host "--- generated project (platforms, libs, sources):"
-          Select-String -Path C:\gen\IVFHandPlacement.vcxproj -Pattern "Platform|\.lib|Include=" | Select-Object -First 60 | ForEach-Object { $_.Line }
-          Write-Host "--- building"
-          msbuild C:\gen\IVFHandPlacement.vcxproj /p:Configuration=Release /p:Platform="GTA-SA" /m
-
+          msbuild C:\gen\IVFHandPlacement.vcxproj /p:Configuration="Release GTA-SA" /p:Platform=Win32 /m
+          Write-Host "--- result:"
+          Get-ChildItem C:\gen -Recurse -Include *.asi,*.dll | ForEach-Object { $_.FullName }
+          
       - name: Collect files
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
